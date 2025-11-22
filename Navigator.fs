@@ -12,11 +12,13 @@ type NavigatorState =
 
 type State = {
     NavigatorState: NavigatorState
+    GameState: Game.State option
 }
 
 let initState() =
     {
         NavigatorState = ShowMainMenu
+        GameState = None
     }
 
 
@@ -26,7 +28,7 @@ let showMainMenu state =
     Utils.displayMessageGigante 0 7 ConsoleColor.Red "Attack!"
     match MainMenu.mostrarMenu 20 15 with
     | GameCommand.NewGame ->
-        {state with NavigatorState=ShowGame}
+        {state with NavigatorState = ShowGame; GameState = None}
     | GameCommand.LoadGame ->
         //
         // La magia ocurre aqui para cargar
@@ -38,9 +40,20 @@ let showMainMenu state =
 
 let showGame state =
     Console.Clear()
-    match Game.mostrarJuego() with
-    | GameStatus.Paused -> {state with NavigatorState=ShowPause}
-    | GameStatus.GameOver -> {state with NavigatorState=ShowGameOver}
+    let gameState =
+        match state.GameState with
+        | Some s -> s
+        | None -> Game.initState()
+
+    let status, updatedGameState = Game.mostrarJuego gameState
+
+    match status with
+    | GameStatus.Paused ->
+        {state with NavigatorState = ShowPause; GameState = Some updatedGameState}
+
+    | GameStatus.GameOver ->
+        {state with NavigatorState = ShowGameOver; GameState = Some updatedGameState}
+
 
 
 let showGameOver state =
@@ -48,7 +61,7 @@ let showGameOver state =
     Utils.displayMessageGigante 0 5 ConsoleColor.Red "Game Over"
     match GameOver.mostrarMenu 10 15 with
     | GameOverCommand.NewGame ->
-        {state with NavigatorState=ShowGame}
+        { state with NavigatorState = ShowGame; GameState = None }
     | GameOverCommand.Exit ->
         { state with NavigatorState=Terminated}
 
@@ -58,11 +71,10 @@ let showPause state =
     Utils.displayMessageGigante 0 5 ConsoleColor.Magenta "Paused"
     match PauseMenu.mostrarMenu 10 15 with
     | PauseCommand.ContinueGame ->
-        //
-        // Hay una magia aqui
-        //
-        {state with NavigatorState=ShowGame}
-
+    let restoredGameState =
+        state.GameState
+        |> Option.map (fun gs -> { gs with ProgramState = Game.Running })
+    { state with NavigatorState = ShowGame; GameState = restoredGameState }
     | PauseCommand.SaveGame ->
         //
         // La magia ocurre aqui tambien
