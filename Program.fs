@@ -1,4 +1,4 @@
-﻿
+
 module App.Game
 open App.Types
 open System
@@ -319,10 +319,14 @@ let rec mainLoop state =
 
 
 let mostrarJuego state =
-    initState()
-    |> mainLoop
-    |> fun state ->
-        if state.AlienLives <= 0 then
+    let finalState = mainLoop state
+    let status =
+        if finalState.AlienLives <= 0 then 
             GameStatus.GameOver
-        else
+        else 
             GameStatus.Paused
+    status, finalState
+
+let iniciarJuegoNuevo() =
+    initState()
+    |> mostrarJuego
