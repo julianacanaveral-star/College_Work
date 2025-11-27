@@ -13,28 +13,33 @@ type NavigatorState =
 type State = {
     NavigatorState: NavigatorState
     GameState: Game.State option
+    ScreenX: int
+    ScreenY: int
 }
 
 let initState() =
     {
         NavigatorState = ShowMainMenu
         GameState = None
+        ScreenX= Console.BufferWidth 
+        ScreenY= Console.BufferHeight
     }
 
 
 let showMainMenu state =
     Console.Clear()
-    Utils.displayMessageGigante 0 0 ConsoleColor.Green "Alien"
-    Utils.displayMessageGigante 0 7 ConsoleColor.Red "Attack!"
-    match MainMenu.mostrarMenu 20 15 with
+    Utils.displayMessageGigante (state.ScreenX/2-18) (state.ScreenY/2-10) ConsoleColor.Green "Alien"
+    Utils.displayMessageGigante (state.ScreenX/2-22) (state.ScreenY/2-3) ConsoleColor.Red "Attack!"
+    match MainMenu.mostrarMenu (state.ScreenX/2-5) (state.ScreenY/2+5) with
     | GameCommand.NewGame ->
         {state with NavigatorState = ShowGame; GameState = None}
     | GameCommand.LoadGame ->
-        //
-        // La magia ocurre aqui para cargar
-        // un juego grabado en disco
-        //
-        {state with NavigatorState=ShowGame}
+        match Save.loadGame() with
+        | Some savedState ->
+            let restoredState = { savedState with ProgramState = Game.Running }
+            { state with NavigatorState = ShowGame; GameState = Some restoredState }
+        | None ->
+            { state with NavigatorState = ShowGame; GameState = Some (Game.initState()) }
     | GameCommand.Exit ->
         {state with NavigatorState=Terminated}
 
@@ -44,22 +49,20 @@ let showGame state =
         match state.GameState with
         | Some s -> s
         | None -> Game.initState()
-
     let status, updatedGameState = Game.mostrarJuego gameState
-
     match status with
     | GameStatus.Paused ->
         {state with NavigatorState = ShowPause; GameState = Some updatedGameState}
-
     | GameStatus.GameOver ->
+        Save.deleteGame() 
         {state with NavigatorState = ShowGameOver; GameState = Some updatedGameState}
 
 
 
 let showGameOver state =
     Console.Clear()
-    Utils.displayMessageGigante 0 5 ConsoleColor.Red "Game Over"
-    match GameOver.mostrarMenu 10 15 with
+    Utils.displayMessageGigante (state.ScreenX/2-30) (state.ScreenY/2-10) ConsoleColor.Red "Game Over"
+    match GameOver.mostrarMenu (state.ScreenX/2-5) (state.ScreenY/2+2) with
     | GameOverCommand.NewGame ->
         { state with NavigatorState = ShowGame; GameState = None }
     | GameOverCommand.Exit ->
@@ -68,18 +71,18 @@ let showGameOver state =
 
 let showPause state =
     Console.Clear()
-    Utils.displayMessageGigante 0 5 ConsoleColor.Magenta "Paused"
-    match PauseMenu.mostrarMenu 10 15 with
+    Utils.displayMessageGigante (state.ScreenX/2-18) (state.ScreenY/2-10) ConsoleColor.Magenta "Paused"
+    match PauseMenu.mostrarMenu (state.ScreenX/2-5) (state.ScreenY/2+2) with
     | PauseCommand.ContinueGame ->
     let restoredGameState =
         state.GameState
         |> Option.map (fun gs -> { gs with ProgramState = Game.Running })
     { state with NavigatorState = ShowGame; GameState = restoredGameState }
     | PauseCommand.SaveGame ->
-        //
-        // La magia ocurre aqui tambien
-        //
-        {state with NavigatorState=Terminated}
+        match state.GameState with
+        | Some gs -> Save.saveGame gs
+        | None -> ()
+    {state with NavigatorState = ShowPause}
     | PauseCommand.Exit ->
         {state with NavigatorState=Terminated}
 
