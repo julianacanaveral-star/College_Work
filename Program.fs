@@ -325,7 +325,7 @@ let mostrarJuego state =
             GameStatus.GameOver
         else 
             GameStatus.Paused
-    status, finalState
+    status,finalState
 
 let iniciarJuegoNuevo() =
     initState()
